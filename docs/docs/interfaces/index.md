@@ -13,4 +13,4 @@ Interface Control Documents (ICDs) define how UT-CORE subsystems and external ha
 - Power and connector pinouts
 - I2C/SPI bus maps and addresses
 
-This section is in progress. See [Start Here](../start-here) for the current doc set.
+This section is in progress. See [Start Here](/start-here) for the current doc set.

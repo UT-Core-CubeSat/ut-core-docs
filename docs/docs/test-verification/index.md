@@ -13,4 +13,4 @@ This section will cover procedures and evidence for verifying UT-CORE requiremen
 - Test procedures and expected results
 - Traceability to requirements
 
-This section is in progress. See [Start Here](../start-here) for the current doc set.
+This section is in progress. See [Start Here](/start-here) for the current doc set.
