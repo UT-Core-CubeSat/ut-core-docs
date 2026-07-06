@@ -2,6 +2,31 @@
 
 This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
 
+Access the website here: https://ut-core-cubesat.github.io/ut-core-docs/
+
+## Install Dependancies (Ubuntu/Debian)
+
+```bash
+sudo apt install npm
+cd ut-core-docs/
+npm install yarn
+npm install
+```
+
+To approve `npm` scripts
+
+```bash
+npm approve-scripts --all
+```
+
+
+
+<!-- ## Update Dependancies -->
+<!--  -->
+<!-- ```bash -->
+<!-- npx npm-check-updates -u -->
+<!-- ``` -->
+
 ## Installation
 
 ```bash
