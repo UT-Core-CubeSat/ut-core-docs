@@ -26,7 +26,7 @@ import EPS_img_7 from './img/EPS_img_7.png';
 ## See Also
 
 - [CDH Overview](/overview/eps)
-- [CDH Software](/software/eps)
+- [CDH Software](/software#eps)
 
 
 ## Documentation

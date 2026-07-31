@@ -25,7 +25,7 @@ import MOTOR_img_5 from './img/MOTOR_img_5.png';
 ## See Also
 
 - [CDH Overview](/overview/eps)
-- [CDH Software](/software/eps)
+- [CDH Software](/software#eps)
 
 <span style={{color: 'red'}}> \***This board has some mistakes that I did not have time to fix. See** [possible solutions](#mcu-pin-count-possible-solutions)\* </span>
 

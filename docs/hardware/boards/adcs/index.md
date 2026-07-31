@@ -29,7 +29,7 @@ import ADCS_V3 from './img/ADCS_V3.svg';
 ## See Also:
 
 - [ADCS Overview](/overview/adcs)
-- [ADCS Software](/software/adcs)
+- [ADCS Software](/software#adcs)
 - [MCU Block](/hardware/mcu)
 
 

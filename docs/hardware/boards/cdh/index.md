@@ -19,7 +19,7 @@ import CDH_img_5 from './img/CDH_img_5.png';
 ## See Also
 
 - [CDH Overview](/overview/cdh)
-- [CDH Software](/software/cdh)
+- [CDH Software](/software#cdh)
 - [MCU Block](/hardware/mcu)
 
 

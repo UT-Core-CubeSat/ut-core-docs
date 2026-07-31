@@ -19,7 +19,7 @@ import GNSS_3D from './img/GNSS_3D.png';
 ## See Also
 
 - [GNSS Overview](/overview/gnss)
-- [GNSS Software](/software/gnss)
+- [GNSS Software](/software#gnss)
 - [MCU Block](/hardware/mcu)
 
 

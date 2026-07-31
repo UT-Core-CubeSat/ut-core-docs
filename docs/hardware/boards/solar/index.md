@@ -20,7 +20,7 @@ import Solar_img_3 from './img/Solar_img_3.png';
 ## See Also
 
 - [EPS Overview](/overview/eps)
-- [Solar Conglomerator Software](/software/solar)
+- [Solar Conglomerator Software](/software#solar)
 - [MCU Block](/hardware/mcu)
 
 
