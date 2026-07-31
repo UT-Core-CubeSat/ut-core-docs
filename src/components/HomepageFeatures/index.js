@@ -16,14 +16,36 @@ const FeatureList = [
     ),
   },
   {
-    title: 'Architecture',
+    title: 'Overview',
     Svg: require('@site/static/img/rocket-2-svgrepo-com.svg').default,
     description: (
       <>
         System overview, subsystem responsibilities, modes, and how power/data
         move through UT-CORE.
         <br />
-        <a href="/ut-core-docs/architecture">View Architecture →</a>
+        <a href="/ut-core-docs/overview">View Overview →</a>
+      </>
+    ),
+  },
+  {
+    title: 'Hardware',
+    Svg: require('@site/static/img/rocket-2-svgrepo-com.svg').default,
+    description: (
+      <>
+        System hardware, PCB boards, physical subsystems.
+        <br />
+        <a href="/ut-core-docs/hardware">View Hardware →</a>
+      </>
+    ),
+  },
+  {
+    title: 'Software',
+    Svg: require('@site/static/img/rocket-2-svgrepo-com.svg').default,
+    description: (
+      <>
+        System software.
+        <br />
+        <a href="/ut-core-docs/software">View Software →</a>
       </>
     ),
   },

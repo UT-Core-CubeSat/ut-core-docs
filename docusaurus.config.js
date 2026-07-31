@@ -70,7 +70,9 @@ const config = {
           // With routeBasePath: '/', your docs are the site
           {type: 'docSidebar', sidebarId: 'tutorialSidebar', label: 'Docs', position: 'left'},
           {to: '/start-here', label: 'Start Here', position: 'left'},
-          {to: '/architecture', label: 'Architecture', position: 'left'},
+          {to: '/overview', label: 'Overview', position: 'left'},
+          {to: '/hardware', label: 'Hardware', position: 'left'},
+          {to: '/software', label: 'Software', position: 'left'},
 
           {
             href: 'https://github.com/ut-core-cubesat/ut-core-docs',
@@ -87,7 +89,9 @@ const config = {
             title: 'Docs',
             items: [
               {label: 'Start Here', to: '/start-here'},
-              {label: 'Architecture', to: '/architecture'},
+              {label: 'Overview', to: '/overview'},
+              {label: 'Hardware', to: '/hardware'},
+              {label: 'Software', to: '/software'},
               {label: 'Interfaces (ICDs)', to: '/interfaces'},
               {label: 'Test & Verification', to: '/test-verification'},
             ],
