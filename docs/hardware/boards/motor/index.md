@@ -24,13 +24,13 @@ import MOTOR_img_5 from './img/MOTOR_img_5.png';
 
 ## See Also
 
-- [CDH Overview](/overview/eps)
-- [CDH Software](/software#eps)
-
-<span style={{color: 'red'}}> \***This board has some mistakes that I did not have time to fix. See** [possible solutions](#mcu-pin-count-possible-solutions)\* </span>
+- [ADCS Overview](/overview/adcs)
+- [ADCS Software](/software#eps)
 
 
 ## System Overview:
+
+<span style={{color: 'red'}}> \***This board has some mistakes that I did not have time to fix. See** [possible solutions](#mcu-pin-count-possible-solutions)\* </span>
 
 The Motor Board is responsible for executing torque commands from the Attitude Determination and Control System (ADCS) by driving four reaction wheel motors. The reaction wheels are basically just a fly wheel. As you apply a torque to the motor, newton’s second law will rotate the satellite in the opposite direction. That is how you control the orientation of the satellite. In the case the satellite is tumbling, and the motors saturate you can use the magnetorquers and momentum dump. Basically, the magnetorquers will give you energy efficient rough control and the motors can fine tune orientation from there. We attempted to do full field orientation control (FOC) on the motors, which had its pros and cons I will talk about when I go over fixes to this board.
 
