@@ -50,6 +50,17 @@ const FeatureList = [
     ),
   },
   {
+    title: 'Controls',
+    Svg: require('@site/static/img/rocket-2-svgrepo-com.svg').default,
+    description: (
+      <>
+        System controls.
+        <br />
+        <a href="/ut-core-docs/controls">View Controls →</a>
+      </>
+    ),
+  },
+  {
     title: 'Interfaces (ICDs)',
     Svg: require('@site/static/img/rocket-2-svgrepo-com.svg').default,
     description: (

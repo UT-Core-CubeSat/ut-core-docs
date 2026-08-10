@@ -7,7 +7,9 @@ title: Interfaces (ICDs)
 
 Interface Control Documents (ICDs) define how UT-CORE subsystems and external hardware communicate.
 
-**Planned content:**
+- [CAN Interface](interfaces/can)
+
+## Planned Content
 
 - CAN IDs and message formats
 - Power and connector pinouts

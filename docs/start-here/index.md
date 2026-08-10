@@ -24,10 +24,14 @@ If you’re new, your goal is to go from **“fresh clone” → “I can build 
 
 ## Quick links
 
-- **Getting Started: Build + Flash** → [`getting-started-build-flash`](getting-started-build-flash.md)
-- **Architecture** → (coming next) system overview, data/power paths
-- **Interfaces (ICDs)** → (coming next) CAN IDs, message formats, connector pinouts
+- **[Getting Started: Build + Flash](getting-started-build-flash.md)** - Getting started on Building + Flashing
+- **[System Overview](/overview)** - System overview, data/power paths
+- **[Interfaces (ICDs)](/interfaces)** - CAN IDs, message formats, connector pinouts
+- **[Electrical Hardware](/hardware)** - Schematics and hardware documentation
+- **[System Software](/software)** - Software/firmware documentation
+- **[Test Verification](/test-verification)** - Procedures and evidence for verifying UT-CORE
 - **Operations** → (coming next) bench bring-up + troubleshooting checklists
+
 
 ## How to contribute to docs
 
