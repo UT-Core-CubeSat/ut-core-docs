@@ -15,6 +15,7 @@ title: Software
 - [Subsystem Data Flowchart](/software/subsys_data_flow)
 - [Waterfall Method Board Requirements](/software/waterfall)
 - [Zephyr Custom Boards](/software/zephyr-board)
+- [CAN Bus-Off Detection and Recovery](/software/can-bus-off-recovery) - Proposed recovery architecture, controller monitoring, fault reporting, and verification.
 
 ## Per-App Function Documentation
 

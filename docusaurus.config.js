@@ -7,6 +7,13 @@ const config = {
   tagline: 'Modular, mission-agnostic CubeSat bus + software stack (Utah Tech)',
   favicon: 'img/favicon.ico',
 
+  // Mermaid diagrams for software architecture documentation
+  markdown: {
+    mermaid: true,
+  },
+
+  themes: ['@docusaurus/theme-mermaid'],
+
   future: {
     v4: true,
   },
