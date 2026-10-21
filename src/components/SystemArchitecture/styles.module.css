@@ -1,0 +1,263 @@
+/* Block diagram on the Architecture Overview page. Colors follow the site theme in custom.css. */
+.root {
+  --sa-canvas: #f6f8fa;
+  --sa-region: #eef3f8;
+  --sa-surface: #ffffff;
+  --sa-line: #b9c5d1;
+  --sa-fg: #1b2733;
+  --sa-muted: #5b6876;
+  --sa-bus: #003058;
+  --sa-uhf: #1f7a4d;
+  --sa-rf: #6a4bb0;
+  --sa-accent: #ba1c21;
+  --sa-main: #fbeaea;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 8px 0 32px;
+}
+
+:global(html[data-theme='dark']) .root {
+  --sa-canvas: #121a23;
+  --sa-region: #172230;
+  --sa-surface: #1b2633;
+  --sa-line: #3a4c5f;
+  --sa-fg: #e1e8ef;
+  --sa-muted: #9fb0c0;
+  --sa-bus: #6fa3d6;
+  --sa-uhf: #4cc08f;
+  --sa-rf: #b39ae8;
+  --sa-accent: #ef666a;
+  --sa-main: #2a1f26;
+}
+
+.figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--sa-line);
+  border-radius: 10px;
+  background: var(--sa-canvas);
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  min-width: 720px;
+  height: auto;
+  font-family: var(--ifm-font-family-base);
+}
+
+.caption {
+  font-size: 0.85rem;
+  color: var(--sa-muted);
+}
+
+/* Spacecraft and bus */
+.spacecraft {
+  fill: var(--sa-region);
+  stroke: var(--sa-line);
+  stroke-width: 1.2;
+}
+
+.spacecraftLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  fill: var(--sa-muted);
+}
+
+.bus {
+  stroke: var(--sa-bus);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.busHit {
+  stroke: transparent;
+  stroke-width: 22;
+}
+
+.tap {
+  stroke: var(--sa-bus);
+  stroke-width: 2.4;
+}
+
+.busLabel {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  fill: var(--sa-bus);
+  paint-order: stroke;
+  stroke: var(--sa-region);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
+/* Boards */
+.card {
+  fill: var(--sa-surface);
+  stroke: var(--sa-line);
+  stroke-width: 1.4;
+}
+
+.main {
+  fill: var(--sa-main);
+  stroke: var(--sa-accent);
+}
+
+.planned {
+  stroke-dasharray: 6 4;
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 700;
+  fill: var(--sa-fg);
+}
+
+.titleMain {
+  fill: var(--sa-accent);
+}
+
+.node {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 11px;
+  fill: var(--sa-muted);
+}
+
+.role {
+  font-size: 13px;
+  fill: var(--sa-muted);
+}
+
+.open {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--sa-accent);
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.drill {
+  cursor: pointer;
+}
+
+.drill:focus {
+  outline: none;
+}
+
+.drill:hover .linked,
+.drill:focus-visible .linked {
+  stroke: var(--sa-accent);
+  stroke-width: 2.2;
+}
+
+.drill:hover .open,
+.drill:focus-visible .open {
+  opacity: 1;
+}
+
+.drill:hover .busGroup .bus,
+.drill:focus-visible .busGroup .bus,
+.drill:hover .busGroup .tap,
+.drill:focus-visible .busGroup .tap {
+  stroke: var(--sa-accent);
+}
+
+.drill:hover .busLabel,
+.drill:focus-visible .busLabel {
+  fill: var(--sa-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .open {
+    transition: none;
+  }
+}
+
+/* External links */
+.external {
+  fill: var(--sa-surface);
+  stroke: var(--sa-muted);
+  stroke-width: 1;
+}
+
+.extName {
+  font-size: 14px;
+  font-weight: 600;
+  fill: var(--sa-fg);
+}
+
+.link {
+  stroke-width: 2.4;
+}
+
+.uhf {
+  stroke: var(--sa-uhf);
+}
+
+.rf {
+  stroke: var(--sa-rf);
+  stroke-dasharray: 8 3 2 3;
+}
+
+.m_uhf { fill: var(--sa-uhf); }
+.m_rf { fill: var(--sa-rf); }
+
+.linkLabel {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--sa-fg);
+  paint-order: stroke;
+  stroke: var(--sa-region);
+  stroke-width: 4px;
+}
+
+.linkSub {
+  font-size: 11px;
+  fill: var(--sa-muted);
+  paint-order: stroke;
+  stroke: var(--sa-region);
+  stroke-width: 4px;
+}
+
+/* Legend and page links */
+.legend,
+.pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--sa-muted);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend svg {
+  flex: none;
+}
+
+.pages {
+  gap: 8px 12px;
+}
+
+.pagesLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sa-muted);
+}
