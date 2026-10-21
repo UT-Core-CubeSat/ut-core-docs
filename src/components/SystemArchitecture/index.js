@@ -1,8 +1,7 @@
 import React from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
-import {useHistory} from '@docusaurus/router';
-import {useBaseUrlUtils} from '@docusaurus/useBaseUrl';
+import DrillLink from '@site/src/components/DrillLink';
 import {
   VIEW, LINKS, SPACECRAFT, BUS, EXTERNALS, BOARDS, BOARD_SIZE, ROW_Y, RADIO,
 } from './data';
@@ -12,34 +11,13 @@ const LINK_NAMES = {
   can: 'CAN bus', cdh: 'CDH', eps: 'EPS', adcs: 'ADCS', comms: 'COMMS', gnss: 'GNSS', motor: 'MOTOR', solar: 'SOLAR',
 };
 
-/** SVG link that navigates inside the Docusaurus app instead of reloading. */
-function DrillLink({to, label, children}) {
-  const history = useHistory();
-  const {withBaseUrl} = useBaseUrlUtils();
-  if (!to) return <g>{children}</g>;
-  const href = withBaseUrl(to);
-  return (
-    <a
-      href={href}
-      className={styles.drill}
-      aria-label={`Open the ${label} page`}
-      onClick={(e) => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-        e.preventDefault();
-        history.push(href);
-      }}>
-      {children}
-    </a>
-  );
-}
-
 const boardBox = (b) => ({x: b.x, y: ROW_Y[b.side], w: BOARD_SIZE.w, h: BOARD_SIZE.h});
 
 function Board({board}) {
   const {id, title, node, role, planned, main} = board;
   const {x, y, w, h} = boardBox(board);
   return (
-    <DrillLink to={LINKS[id]} label={title}>
+    <DrillLink to={LINKS[id]} label={title} className={styles.drill}>
       <rect
         className={clsx(styles.card, main && styles.main, planned && styles.planned, LINKS[id] && styles.linked)}
         x={x} y={y} width={w} height={h} rx={8}
@@ -95,7 +73,7 @@ export default function SystemArchitecture() {
             <text className={styles.spacecraftLabel} x={SPACECRAFT.x + SPACECRAFT.w - 14} y={SPACECRAFT.y + 22}
               textAnchor="end">UT-CORE spacecraft</text>
 
-            <DrillLink to={LINKS.can} label="CAN bus">
+            <DrillLink to={LINKS.can} label="CAN bus" className={styles.drill}>
               <g className={styles.busGroup}>
                 {BOARDS.map((b) => {
                   const {x, y, w, h} = boardBox(b);

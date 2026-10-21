@@ -1,0 +1,195 @@
+/* CDH interface diagram. Same palette as the Architecture Overview diagram. */
+.figure {
+  --ci-canvas: #f6f8fa;
+  --ci-surface: #ffffff;
+  --ci-line: #b9c5d1;
+  --ci-fg: #1b2733;
+  --ci-muted: #5b6876;
+  --ci-can: #003058;
+  --ci-rf: #1f7a4d;
+  --ci-local: #707d8b;
+  --ci-accent: #ba1c21;
+  --ci-main: #fbeaea;
+  --ci-p1: #2f6db5;
+  --ci-p2: #1f7a4d;
+  --ci-p3: #b86e00;
+  --ci-p4: #7a4bb0;
+
+  margin: 8px 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:global(html[data-theme='dark']) .figure {
+  --ci-canvas: #121a23;
+  --ci-surface: #1b2633;
+  --ci-line: #3a4c5f;
+  --ci-fg: #e1e8ef;
+  --ci-muted: #9fb0c0;
+  --ci-can: #8ab9e8;
+  --ci-rf: #4cc08f;
+  --ci-local: #8d9aa8;
+  --ci-accent: #ef666a;
+  --ci-main: #2a1f26;
+  --ci-p1: #5b9be0;
+  --ci-p2: #3fae7c;
+  --ci-p3: #d9922a;
+  --ci-p4: #a07ce0;
+}
+
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--ci-line);
+  border-radius: 10px;
+  background: var(--ci-canvas);
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  min-width: 720px;
+  height: auto;
+  font-family: var(--ifm-font-family-base);
+}
+
+.caption {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--ci-muted);
+}
+
+.key {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.key svg {
+  flex: none;
+  margin-left: 6px;
+}
+
+/* Blocks */
+.block {
+  fill: var(--ci-surface);
+  stroke: var(--ci-line);
+  stroke-width: 1.4;
+}
+
+.external {
+  stroke: var(--ci-muted);
+  stroke-width: 1;
+}
+
+.hw {
+  stroke: var(--ci-muted);
+  rx: 2;
+}
+
+.planned {
+  stroke-dasharray: 6 4;
+}
+
+.name {
+  font-size: 16px;
+  font-weight: 700;
+  fill: var(--ci-fg);
+}
+
+.sub {
+  font-size: 12px;
+  fill: var(--ci-muted);
+}
+
+.cdh {
+  fill: var(--ci-main);
+  stroke: var(--ci-accent);
+  stroke-width: 1.8;
+}
+
+.cdhTitle {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  fill: var(--ci-accent);
+}
+
+.cdhLine {
+  font-size: 14px;
+  fill: var(--ci-fg);
+}
+
+.cdhKey {
+  font-weight: 700;
+  fill: var(--ci-accent);
+}
+
+.drill {
+  cursor: pointer;
+}
+
+.drill:focus {
+  outline: none;
+}
+
+.drill:hover .linked,
+.drill:focus-visible .linked {
+  stroke: var(--ci-accent);
+  stroke-width: 2.2;
+}
+
+/* Arrows */
+.arrow {
+  stroke-width: 2;
+}
+
+.can {
+  stroke: var(--ci-can);
+}
+
+.rf {
+  stroke: var(--ci-rf);
+}
+
+.local {
+  stroke: var(--ci-local);
+}
+
+.dashed {
+  stroke-dasharray: 6 4;
+}
+
+.m_can { fill: var(--ci-can); }
+.m_rf { fill: var(--ci-rf); }
+.m_local { fill: var(--ci-local); }
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--ci-fg);
+}
+
+.labelSub {
+  font-size: 12px;
+  fill: var(--ci-muted);
+}
+
+.badge {
+  stroke: var(--ci-canvas);
+  stroke-width: 2;
+}
+
+.p1 { fill: var(--ci-p1); }
+.p2 { fill: var(--ci-p2); }
+.p3 { fill: var(--ci-p3); }
+.p4 { fill: var(--ci-p4); }
+
+.badgeText {
+  font-size: 10px;
+  font-weight: 700;
+  fill: #ffffff;
+}
