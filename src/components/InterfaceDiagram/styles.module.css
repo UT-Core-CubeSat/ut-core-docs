@@ -1,4 +1,4 @@
-/* CDH interface diagram. Same palette as the Architecture Overview diagram. */
+/* Board interface diagrams (CDH, GNSS, ...). Same palette as the Architecture Overview diagram. */
 .figure {
   --ci-canvas: #f6f8fa;
   --ci-surface: #ffffff;
@@ -14,6 +14,7 @@
   --ci-p2: #1f7a4d;
   --ci-p3: #b86e00;
   --ci-p4: #7a4bb0;
+  --ci-p5: #a3366f;
 
   margin: 8px 0 24px;
   display: flex;
@@ -36,6 +37,7 @@
   --ci-p2: #3fae7c;
   --ci-p3: #d9922a;
   --ci-p4: #a07ce0;
+  --ci-p5: #e06aa6;
 }
 
 .scroll {
@@ -192,4 +194,25 @@
   font-size: 10px;
   font-weight: 700;
   fill: #ffffff;
+}
+
+.p5 { fill: var(--ci-p5); }
+
+/* The board a page is about, drawn as a region holding its parts */
+.region {
+  fill: var(--ci-main);
+  stroke: var(--ci-accent);
+  stroke-width: 1.8;
+}
+
+.regionTitle {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  fill: var(--ci-accent);
+}
+
+.note {
+  font-size: 12.5px;
+  fill: var(--ci-fg);
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import clsx from 'clsx';
 import DrillLink from '@site/src/components/DrillLink';
-import styles from './styles.module.css';
+import styles from '@site/src/components/InterfaceDiagram/styles.module.css';
 
 /*
  * CDH board-interface diagram. CDH sits in the middle; the boards it talks to
