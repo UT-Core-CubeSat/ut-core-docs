@@ -3,221 +3,254 @@ sidebar_position: 0
 title: Inter-Board Communications
 ---
 
-# Inter-Board Communications — CDH
+# Inter-Board Communications
 
-This was the base layout for how we wanted the CAN protocol to work. To see how the CAN protocol ended up looking, check the `can_proto.h` file in the GitHub repository.
+How the boards talk to each other over the CAN bus.
 
-## CAN-BUS Node IDs
+:::info[Source of truth]
+The firmware is authoritative. If this page and the code disagree, the code wins:
+`common/can_proto.h` (ID layout, node IDs, send/receive API), `common/ops.h` (opcode registry and
+payload lengths) and `common/can_proto.c` (filters and error counters), all in the
+[ut-core-zephyr](https://github.com/UT-Core-CubeSat/ut-core-zephyr) repository.
+:::
 
-| Node   | ID   |
-|--------|------|
-| CDH    | 0x01 |
-| EPS    | 0x02 |
-| COMMS  | 0x03 |
-| ADCS   | 0x04 |
-| MOTOR  | 0x05 |
-| GNSS   | 0x06 |
-| STAR   | 0x07 |
+The bus runs **CAN FD** with **29-bit extended IDs**: **500 kbit/s** in the arbitration phase and **2 Mbit/s** in
+the data phase of FD frames (set by `CAN_FD_DATA_BITRATE` in `can_proto.h`). Messages of 8 bytes or fewer are
+ordinary classic frames; only messages longer than 8 bytes are sent as FD frames.
 
-## Arbitration ID Layout (29-bit)
+:::warning[FD is enabled on some boards only]
+FD is switched on per app with `CONFIG_CAN_FD_MODE=y`. Today that is **CDH and GNSS** (and the `cdhModeTest`
+app). EPS, MOTOR, SOLAR and ADCS still build as classic CAN and must not be on a bus that carries FD frames
+until they are converted. See [CAN FD status](#can-fd-status).
+:::
+
+## Node IDs
+
+| Node      | ID     |
+|-----------|--------|
+| CDH       | 0x01   |
+| EPS       | 0x02   |
+| COMMS     | 0x03   |
+| ADCS      | 0x04   |
+| MOTOR     | 0x05   |
+| GNSS      | 0x06   |
+| STAR      | 0x07   |
+| SOLAR     | 0x08   |
+| GROUND    | 0x10   |
+| Broadcast | 0x1F (destination only) |
+
+## Arbitration ID layout (29-bit)
 
 ```
-[P:3][CLASS:5][SRC:6][DST:6][INST:9]
+[28:26]  PRIORITY  (3 bits)   0 = highest
+[25:21]  SRC       (5 bits)   sender's node ID
+[20:16]  DST       (5 bits)   receiver's node ID; 0x1F = broadcast
+[15:4]   OP        (12 bits)  opcode: which message this is
+[3:0]    RESERVED  (4 bits)   must be 0
 ```
 
-- **P (Priority):** How urgent is this? 0 = most urgent, 7 = least urgent.
-- **CLASS (Message Type):** What kind of message is this (see Message Classes below).
-- **SRC (Source):** Who sent this? Uses the Node IDs above.
-- **DST (Destination):** Who is this message for? 0 means "broadcast" to everyone.
-- **INST (Instance/Subject):** A specific sub-ID for this message type. For example, if the Class is "Command," the Instance would be which command.
+- **PRIORITY** decides who wins when two nodes transmit at once. Lower wins.
+- **SRC / DST** say who sent the frame and who it is for. Each board accepts only frames whose DST is its own
+  ID or broadcast (set up in `can_setup()`).
+- **OP** is the message type. There is no separate "class" or "instance" field: one opcode means exactly one
+  message. The top nibble of the opcode is only a category, to keep bus dumps readable
+  (see [Opcode registry](#opcode-registry)).
 
-**Example — CDH Heartbeat:**
+**Example, CDH heartbeat.** Priority 3, source CDH (0x01), destination broadcast (0x1F), opcode `OP_HEARTBEAT` (0x001):
+
 ```
-001|00000|000001|000000|000000000
+011 | 00001 | 11111 | 000000000001 | 0000   =   0x0C3F0010
 ```
 
-### Plain-language summary
+The firmware builds and splits IDs with the macros in `can_proto.h`: `CAN_ID_FULL(prio, src, dst, op)`,
+and `CAN_ID_PRIO / CAN_ID_SRC / CAN_ID_DST / CAN_ID_OP` to read them back.
 
-- **Node IDs** — the "addresses" or "phone numbers" for each main component.
-- **Arbitration ID** — the "envelope" for every message. It explains who sent it, who it's for, how important it is, and what kind of message it is (status update, command, data file, etc.).
-- **Message Classes** — the "what kind" part; see below for the full catalog and what data each contains.
+## Payload rules
 
-## Message Classes (Types)
+The source node and opcode live in the ID, so **every data byte is application payload**. Payload bytes are
+written p0..p7 (data[0]..data[7]) in the tables below.
 
-| Class ID | Message Type | Class ID | Message Type |
-|----------|---------------|----------|----------------|
-| 0        | Heartbeat     | 8        | ParamResp      |
-| 1        | Timesync      | 9        | "File"         |
-| 2        | Command       | 10       | Boot           |
-| 3        | CmdResp       | 11       | Health         |
-| 4        | Telemetry     | 12       | Sync/RTC       |
-| 5        | Event         | 13       | Debug          |
-| 6        | ParamGet      | 14...31  | Reserved       |
-| 7        | ParamSet      |          |                |
+- **Fixed length per opcode.** `can_op_len()` in `ops.h` gives each opcode's length: **2, 4 or 8 bytes** for
+  classic frames (the smallest that fits), or a CAN FD length of **12, 16, 20, 24, 32, 48 or 64 bytes**. Unused
+  trailing bytes within the length are 0.
+- **Multi-byte values are big-endian.** `can_put_be32()` and `can_get_be32()` in `can_proto.h` pack and unpack
+  signed 32-bit values.
+- **Sending:** use `can_send2`, `can_send4` or `can_send8` for classic frames. For FD frames use `can_send12`,
+  `can_send20` or `can_send64`, which take a pointer to the payload instead of individual bytes (any other FD
+  length can call `can_send_frame()` directly). `can_send_frame()` returns `-EINVAL` if the length does not match
+  the opcode, and nothing is put on the bus. A frame longer than 8 bytes is sent as FD with bit-rate switch, and
+  returns `-ENOTSUP` if the app was not built with `CONFIG_CAN_FD_MODE`.
+- **Receiving:** `can_decode()` drops any frame whose length does not match its opcode, whose opcode is
+  unknown, or that is longer than 8 bytes but not flagged as an FD frame (`-EMSGSIZE`). Dropped frames are
+  counted by `can_proto_rx_len_error_count()`, so handlers can trust `data[0..len-1]`. `can_packet_t.data` is
+  64 bytes, and `dlc` holds the length in bytes (not the raw DLC code).
+- **Send is non-blocking.** A return of 0 means the frame was queued, not that anyone received it. Failures
+  (for example no node acknowledged) show up afterwards in `can_proto_tx_error_count()`.
+
+### Adding a new message
+
+1. Add the opcode to `ops.h` (value unique and ≤ 0xFFF), in the right category. Never define opcodes in an app.
+2. Add it to `can_op_len()` with a length of 2, 4 or 8 (classic), or 12, 16, 20, 24, 32, 48 or 64 (FD; every node that receives it needs FD enabled).
+3. Mirror it in `tools/ground_station/can_proto.py`.
+4. Document the payload layout in the opcode's comment and in the tables here.
+
+## Opcode registry
+
+| Range | Category |
+|-------|----------|
+| 0x0xx | System / heartbeat |
+| 0x1xx | Command (sender → target) |
+| 0x2xx | Command response. Always `OP_RESP(command)` = command + 0x100 |
+| 0x3xx | Telemetry |
+| 0x4xx | State of health (SOH) |
+
+### System (0x0xx)
+
+| Opcode | Name | Len | Payload | Notes |
+|--------|------|-----|---------|-------|
+| 0x001 | `OP_HEARTBEAT` | 2 | p0 = CDH mode (0 for other nodes), p1 = 0 | Broadcast every 1 s by every node |
+| 0x002 | `OP_PING` | 2 | none defined | Bench test |
+| 0x003 | `OP_PONG` | 2 | none defined | Bench test |
+| 0x004 | `OP_BUTTON` | 2 | none defined | Bench test |
+
+CDH modes carried in p0 of its heartbeat: 0 = SAFE, 1 = STANDBY, 2 = DOWNLINK, 3 = EXPERIMENT, 4 = PHOENIX.
+
+### Commands (0x1xx) and responses (0x2xx)
+
+| Opcode | Name | Len | Payload | Direction |
+|--------|------|-----|---------|-----------|
+| 0x101 | `OP_SET_LED` | 2 | p0 = LED state | to CDH |
+| 0x102 | `OP_SET_MODE` | 2 | p0 = requested mode (CDH accepts only SAFE or STANDBY) | to CDH |
+| 0x103 | `OP_REBOOT` | 2 | none | to CDH (currently a no-op) |
+| 0x104 | `OP_SET_PWR_STATE` | 2 | p0 = load number, p1 = state (1 on, 0 off) | CDH → EPS |
+| 0x105 | `OP_GET_POS` | 2 | none | CDH → GNSS |
+| 0x106 | `OP_SET_UPDATE_RATE` | 2 | p0 = rate in Hz | CDH → GNSS |
+| 0x110 | `OP_SET_WHEEL_RPM` | 4 | p0 = motor (1..4, 0 = all), p1..p2 = int16 RPM | ADCS → MOTOR |
+| 0x111 | `OP_SET_MAG_DIPOLE` | 8 | p0..p1 = mx, p2..p3 = my, p4..p5 = mz (int16, 1e-4 A·m² per LSB) | ADCS → SOLAR |
+| 0x112 | `OP_SET_EPS_LOAD` | 2 | p0 = load (1..12, 0 = all), p1 = enable | defined, no sender yet |
+| 0x204 | `OP_RESP_SET_PWR_STATE` | 4 | p0 = load, p1 = state, p2 = status (0 = OK, 1 = error), p3 = 0 | EPS → CDH |
+| 0x205 | `OP_RESP_GET_POS` | 2 | p0 = 1 (ack) | GNSS → CDH |
+| 0x206 | `OP_RESP_SET_UPDATE_RATE` | 2 | p0 = accepted rate, or 0 if rejected | GNSS → CDH |
+| 0x210 | `OP_RESP_SET_WHEEL_RPM` | 2 | defined, not yet sent | MOTOR → sender |
+| 0x211 | `OP_RESP_SET_MAG_DIPOLE` | 2 | p0 = duty percent | SOLAR → sender |
+| 0x212 | `OP_RESP_SET_EPS_LOAD` | 2 | defined, not yet sent | EPS → sender |
+
+### Telemetry (0x3xx)
+
+| Opcode | Name | Len | Payload | Direction |
+|--------|------|-----|---------|-----------|
+| 0x301 | `OP_GNSS_POS` | 12 (FD) | p0..p3 = latitude, p4..p7 = longitude (int32, 1e-7°), p8..p11 = ellipsoid altitude (int32, cm) | GNSS → CDH |
+| 0x302 | `OP_GNSS_VEL` | 12 (FD) | p0..p3 = ECEF vx, p4..p7 = vy, p8..p11 = vz (int32, cm/s) | GNSS → CDH |
+| 0x305 | `OP_GNSS_TIME` | 8 | p0..p1 = GPS week, p2..p5 = time of week in centiseconds; p6..p7 = 0 | GNSS → CDH |
+| 0x310 | `OP_MOTOR_WHEEL_RPM` | 4 | wheel RPM telemetry | MOTOR → broadcast |
+| 0x311 | `OP_ADCS_WHEEL_RPM` | 8 | wheel 1..3 RPM in p0..p5 | ADCS → broadcast |
+| 0x312 | `OP_ADCS_MTQ_DIPOLE` | 8 | mx, my, mz in p0..p5 | ADCS → broadcast |
+
+Position and velocity were previously split across several 8-byte frames (24-bit lat/lon at 1e-4°, about 11 m,
+and one frame per velocity axis with a sequence number). Each now fits in one 12-byte FD frame at full receiver
+resolution, so the three velocity axes are always from the same nav snapshot and no sequence number is needed.
+Opcodes 0x303 and 0x304 (the old VY and VZ) are retired.
+GNSS time is GPS time, not UTC. Conversion is left to CDH or ground.
+
+### State of health (0x4xx)
+
+| Opcode | Name | Len | Payload | Direction |
+|--------|------|-----|---------|-----------|
+| 0x401 | `OP_SOH_GNSS` | 8 | p0 = fix mode (0 none, then the receiver's value: 1 = 2D, 2 = 3D, 3 = 3D+DGPS; see GNSS known issues), p1 = satellites, p2 = HDOP×10, p3 = PDOP×10, p4 = update rate Hz, p5 = flags (bit 0 = driver running), p6..p7 = 0 | GNSS → CDH |
+| 0x402 | `OP_SOH_SOLAR` | 8 | temperatures and duty cycles (see `apps/SOLAR/src/main.c`) | SOLAR → CDH |
+| 0x403 | `OP_SOH_MOTOR` | 4 | fault/status (see `apps/MOTOR/src/main.c`) | MOTOR → broadcast |
+| 0x404 | `OP_ADCS_SOH_ATTITUDE` | 8 | qx, qy, qz in p0..p5 | ADCS → broadcast |
+| 0x410 | `OP_SOH_CORE` | 8 | p0..p3 = uptime (s), p4..p5 = supply voltage (mV, 0xFFFF = read failed), p6 = temperature (°C, int8, -128 = read failed), p7 = schema version (high nibble) and reset cause (low nibble) | any node → CDH or broadcast |
+| 0x411 | `OP_SOH_CAN_STATS` | 8 | p0 = TEC, p1 = REC, p2 = CAN flags (bit 0 error-warning, bit 1 error-passive), p3 = bus-off count, p4..p5 = error IRQ count, p6..p7 = RX overrun count (counts saturate) | any node → CDH or broadcast |
+
+`OP_SOH_CORE` and `OP_SOH_CAN_STATS` use the shared pack/unpack code in `common/soh.h` and `soh.c`
+(`soh_pack_core`, `soh_unpack_core`, `soh_pack_can`, `soh_unpack_can`, with host unit tests in `tests/host`).
+**No board sends or handles them yet.** They are defined so the format and opcodes are fixed; they overlap in
+purpose with the per-board SOH opcodes above, and which set stays has not been decided.
+
+Per-board lists of what each node sends and receives are on the [CAN Interface](/interfaces/can) page.
+
+## Ordering and priority
+
+Frames with **different opcodes are not guaranteed to arrive in the order they were sent.** When several frames
+are waiting to go out, the one with the lowest ID transmits first, and the opcode is part of the ID. In bench
+testing, 8-byte frames sent back to back overtook 2- and 4-byte frames queued before them because their opcode
+was higher. Nothing was lost or corrupted.
+
+- Only one sender sending one opcode is guaranteed to stay in order.
+- If a receiver needs to group frames (like a position frame and the velocity frame sent with it), put a shared sequence byte in them, or put the data in one frame.
+- Priority is compared before the opcode. For urgent traffic, use a lower priority value rather than a
+  low opcode number.
+- Priority values currently used by the apps: CDH 3, EPS 4, ADCS 4, GNSS 4 (telemetry 2), SOLAR 4, MOTOR 2.
+  They are set per app, not centrally, so check the app source before relying on them.
+
+## Verification
+
+The length rules were tested between the GNSS and CDH boards in November 2026, in both directions. CAN FD was
+then tested on the same two boards (see below).
+
+- 41 frames GNSS → CDH (2, 4 and 8 bytes, including real opcodes and a back-to-back burst), all received with the correct bytes; the real `OP_GNSS_POS` handler decoded a negative latitude correctly.
+- The 32 test-opcode frames were echoed CDH → GNSS and all matched.
+- 10 frames with the wrong length for their opcode were sent in each direction; all were dropped by `can_decode()`.
+- Sending with a wrong length or null data returned `-EINVAL`.
+- No send errors. The only anomaly was the reordering described above.
+
+The test code was temporary and has been removed. Other boards (EPS, MOTOR, SOLAR, ADCS) share the same
+`can_proto` code but were not part of this test.
+
+### CAN FD (November 2026)
+
+Tested between CDH and GNSS, with FD enabled on both, 500 kbit/s arbitration and 2 Mbit/s data phase.
+
+- Stage 1: with FD mode on and only classic traffic, both boards booted and existing traffic still worked with no send errors.
+- Stage 2: CDH sent a 64-byte FD ping every second and GNSS echoed it; the payload pattern matched and the echoed length was correct.
+- Stage 3: the same ping/pong cycling through every FD length (12, 16, 20, 24, 32, 48, 64 bytes); all lengths passed with no corrupt payloads or send errors.
+
+The test opcodes and code were temporary and have been removed. The 12-byte `OP_GNSS_POS` and `OP_GNSS_VEL`
+frames that replaced the split position/velocity frames were then tested on the same two boards and passed
+with no issues.
+
+**Not tested:** data rates above 2 Mbit/s, and any real bus. The tests were on a bench setup without the final
+wiring, termination or cable lengths, so the 2 Mbit/s data rate still needs confirming there.
 
 ---
 
-## CDH (Node 1) — Message Set Details
+## Planned / not implemented
 
-Specific messages that the CDH (main computer, Node 1) sends and receives.
+The original design of this protocol had a class/instance ID, 8 to 20 byte variable payloads and several
+message families. The firmware was simplified to the opcode scheme above, and **none of the following exists
+yet**. They are kept here as intent for whoever builds them. Each needs new opcodes in `ops.h` and lengths of
+2, 4 or 8 bytes, or an FD length of 12 to 64 bytes (see [CAN FD status](#can-fd-status)).
 
-### Heartbeat (Class 0)
+| Feature | Intent | What it needs under the current scheme |
+|---------|--------|----------------------------------------|
+| **Time sync** | CDH broadcasts a master time so every board agrees on the time. Nodes slew-correct their clocks; ADCS and GNSS may discipline tighter. | Original payload was 12 bytes (64-bit ms, uncertainty, epoch, flags), which now fits one FD frame with `can_send12`. `OP_GNSS_TIME` already carries GPS time to CDH. |
+| **Events** | One-off notifications: mode change, brownout, RTC set, file system warning/full, parameter changed, bootloader entered. Severity INFO/WARN/ERR/CRIT with a timestamp. | One opcode per event or one event opcode with an event id; 8 bytes fits severity, id and a short timestamp. |
+| **Parameter protocol** | Read and write named settings (log level, watchdog period, default state...) on any node, with a response carrying the value. | A get, set and response opcode with a 16-bit key plus value. Original key map: `cdh.state.default`, `cdh.timesync.enable`, `cdh.log.level`, `cdh.wd.period_ms`, `cdh.reboot.on_fault`, `cdh.fs.log_mask`. |
+| **File transfer / logs** | Move large files (logs, configs) in chunks with acknowledgments: Start, DATA, ACK, END (checksum). | Four opcodes. With 64-byte FD frames, DATA carries roughly 60 bytes of file data per frame after a chunk number, which is about ten times more than 8-byte frames. |
+| **Boot / DFU** | Reboot a node into its bootloader, then send new firmware over file transfer. | Needs `OP_REBOOT` with a reason code (soft, bootloader, to safe), a bootloader heartbeat state, and file transfer. |
+| **CDH system telemetry** | Voltages, current, CPU temperature, free memory, CAN error counters, time in each mode, watchdog state. | Original sizes were 20, 12 and 8 bytes, which now fit single FD frames (`can_send20`, `can_send12`). `can_proto_tx_error_count()` and `can_proto_rx_len_error_count()` already exist for the error counters. |
+| **Health summary** | CDH broadcasts a health mask and fault mask about every 2 s. | Original payload was two 32-bit masks (8 bytes), which fits as is. |
+| **Clear faults** | Ground clears CDH's reboot lockout and recorded fault. | A new command opcode; CDH has the function (`cdh_clear_faults`) but nothing calls it. |
 
-**Summary:** A simple "I'm alive" signal that the CDH broadcasts regularly. Tells other parts of the system its current status (e.g., "booting up" or "running normally"), software version, and uptime.
+### CAN FD status
 
-**Example:** CDH (Source: 1) sends its heartbeat to Everyone (Destination: 0).
+CAN FD is enabled on CDH and GNSS and tested between them (see [Verification](#verification)). The decision to
+use FD was made; what remains is finishing the rollout.
 
-- **ID:** `[P=1][CLASS=0][SRC=1][DST=0][INST=0]`
-- **Payload (8 bytes):**
+**Done**
 
-  | Field | Description |
-  |---|---|
-  | `u8 ver` | currently 1 |
-  | `u8 state` | 0=BOOT, 1=SAFE, 2=STANDBY, 3=OP, 4=FAULT, 5=SHUTDOWN |
-  | `u8 major` | CDH firmware major version |
-  | `u8 minor` | CDH firmware minor version |
-  | `u16 uptime_s_mod1d` | uptime in seconds, resets every 24 hours |
-  | `u8 hb_seq` | counter that wraps from 0...255 |
+- `CONFIG_CAN_FD_MODE=y` in the CDH and GNSS apps; `can_setup()` checks the controller supports FD, sets the
+  2 Mbit/s data bitrate and turns on FD mode. Classic frames still work in that mode.
+- `can_send_frame()` and `can_decode()` handle FD lengths and DLC codes, with `can_send12/20/64` helpers.
+- `OP_GNSS_POS` and `OP_GNSS_VEL` are FD messages.
 
-- **Subscriber action:** Update liveness; if `state == FAULT`, take action.
+**Still to do**
 
-### Time Sync (Class 1)
+- **Other boards.** EPS, MOTOR, SOLAR and ADCS are still classic. Add `CONFIG_CAN_FD_MODE=y` to each app before they share a bus with FD traffic. The shared `can_proto` code already supports it.
+- **Every node must support FD.** A classic-only node treats FD frames as errors. All boards use FDCAN peripherals with TCAN3403 transceivers, which support FD; that includes any bench adapter or ground-station tool on the bus.
+- **Ground-station path.** The ground station's UDP packet format carries a fixed 8 data bytes, so it cannot carry FD frames; the UDP format and the bridge would need to change before it can show the 12-byte frames.
+- **Data rate.** 2 Mbit/s works on the bench. Confirm it on the real bus, and only then consider 4 or 5 Mbit/s.
 
-**Summary:** Used by the CDH to keep all other components' clocks synchronized. Broadcasts the official "master time" so all parts of the system agree on the exact time — critical for coordinating tasks.
-
-**Example:** CDH (Source: 1) broadcasts the current time to Everyone (Destination: 0).
-
-- **ID:** `[P=0][CLASS=1][SRC=1][DST=0][INST=0]`
-- **Payload (12 bytes):**
-
-  | Field | Description |
-  |---|---|
-  | `u64 unix_ms` | time master value in milliseconds |
-  | `u16 t_unc_us` | +/- time uncertainty, in microseconds |
-  | `u8 epoch` | 0=UNIX, 1=TAI, 2=GPS |
-  | `u8 flags` | bit0=leap_announce, bit1=valid |
-
-- **Notes:** Nodes should slew-correct their local clock. ADCS/GNSS may discipline more tightly.
-
-### Command (Class 2) & Command Response (Class 3)
-
-**Summary:** How the CDH tells other parts what to do. Commands (Class 2) are sent to a device (e.g., "reboot yourself"). A Command Response (Class 3) is sent back to confirm receipt and success/failure.
-
-**Example:** To reboot the radio, CDH (Source: 1) sends a command to COMMS (Destination: 3). COMMS then sends a response back from COMMS (Source: 3) to CDH (Destination: 1).
-
-- **General Command ID (Class 2):** `[P=2][CLASS=2][SRC=1][DST=target][INST=cmd_id]`
-- **Common Command IDs (INST):**
-
-  | INST | Command | Payload |
-  |---|---|---|
-  | 1 | `CDH_SET_MODE` | `u8 new_state` (as in heartbeat states) |
-  | 2 | `NODE_REBOOT` | `u8 reason` (0=soft, 1=into_bootloader, 2=to_safe) |
-  | 3 | `CLEAR_FAULTS` | No payload |
-  | 4 | `PARAM_SET` | see Parameter Protocol section |
-
-- **Command Response ID (Class 3):** `[P=2][CLASS=3][SRC=target][DST=1][INST=cmd_id]`
-  - Payload: `u8 status` (e.g., 0=OK, 1=Error)
-
-### Telemetry (Class 4)
-
-**Summary:** Routine health and status data — voltage levels, temperature, memory usage, time spent in different modes. The main way the system reports its vital signs.
-
-**Example:** CDH (Source: 1) broadcasts temperature and voltage readings to Everyone (Destination: 0) so any component can listen.
-
-- **ID:** `[P=3][CLASS=4][SRC=1][DST=0][INST=subid]`
-- **Rates:** 1 Hz nominal (once per second); some faster, some slower.
-- **Sub-IDs (INST) & Payloads:**
-
-  **0: `CDH_SYS`** [20 bytes]
-  - `u16 v_5v_mv`, `u16 v_3v3_mv`, `u16 i_total_mA` — voltages, current
-  - `i16 cpu_temp_cC` — CPU temperature in centi-Celsius
-  - `u32 free_heap_B`, `u32 free_fs_kB` — free memory and file space
-  - `u16 can_rx_err`, `u16 can_tx_err` — network error counters
-
-  **1: `CDH_MODE_TIME`** [12 bytes]
-  - `u32 t_boot_s, t_safe_s, t_op_s` — time spent in each mode
-
-  **2: `CDH_WATCHDOG`** [8 bytes]
-  - `u8 wd_enable_mask`, `u8 wd_trip_mask` — watchdog status
-  - `u16 wd_kick_ms`
-  - `u32 last_reset_reason`
-
-### Event (Class 5)
-
-**Summary:** Unlike routine telemetry, "Events" report a specific thing that just happened — informational (e.g., mode changed), a warning, or a critical error (e.g., brownout, out of file space).
-
-**Example:** If the CDH detects a brownout (voltage drop), CDH (Source: 1) broadcasts this event to Everyone (Destination: 0).
-
-- **ID:** `[P=2][CLASS=5][SRC=1][DST=0 or 1][INST=event_id]`
-- **Payload (variable):**
-  - `u8 sev` — 0=INFO, 1=WARN, 2=ERR, 3=CRIT
-  - `u32 ts_ms` — timestamp
-  - `u8 data[...]` — e.g., error code
-- **Common event_ids:** 1=ModeChange, 2=Brownout, 3=RTCSet, 4=FSWarn, 5=FSFull, 6=ParamChanged, 7=BootloaderEntered
-
-### Parameter Protocol (Classes 6, 7, 8)
-
-**Summary:** Allows the CDH to read or change specific configuration settings on other devices.
-
-- **ParamGet (Class 6):** ask for a setting's value.
-- **ParamSet (Class 7):** change a setting's value.
-- **ParamResp (Class 8):** response carrying the requested value or confirming the change.
-
-**Example:** To check the ADCS's "log level" setting, CDH (Source: 1) sends a `ParamGet` to ADCS (Destination: 4). ADCS (Source: 4) replies with a `ParamResp` back to CDH (Destination: 1).
-
-- **ParamGet (Class 6):** Ask for a parameter
-  - ID: `[P=3][CLASS=6][SRC=1][DST=target][INST=key]`
-- **ParamSet (Class 7):** Set a parameter
-  - ID: `[P=2][CLASS=7][SRC=1][DST=target][INST=key]`
-  - Payload: `u8 type|value...`
-- **ParamResp (Class 8):** The response to a Get/Set
-  - ID: `[P=2][CLASS=8][SRC=target][DST=1][INST=key]`
-  - Payload: `u8 type|value...`
-
-**CDH Parameter Map (Keys):**
-
-| Key | Parameter | Type |
-|---|---|---|
-| 0x0001 | `cdh.state.default` | u8 |
-| 0x0002 | `cdh.timesync.enable` | bool |
-| 0x0003 | `cdh.log.level` | u8 |
-| 0x0004 | `cdh.wd.period_ms` | u16 |
-| 0x0005 | `cdh.reboot.on_fault` | bool |
-| 0x0100 | `cdh.fs.log_mask` | u16 |
-
-### Health (Class 11)
-
-**Summary:** A super-compact summary of the entire system's health — a bitfield (series of on/off flags) showing whether any subsystem has a fault or is in a bad state. A quick-glance "check engine light" for the whole system.
-
-**Example:** CDH (Source: 1) broadcasts the health summary to Everyone (Destination: 0) every two seconds.
-
-- **ID:** `[P=3][CLASS=11][SRC=1][DST=0][INST=0]`
-- **Notes:** Broadcast every ~2 seconds.
-- **Payload [8 bytes]:** `u32 health_mask`, `u32 fault_mask`
-
-### File Transfer / Logs (Class 9)
-
-**Summary:** Used for sending large chunks of data, like log files or configuration files. Since a single message can't hold a whole file, this protocol breaks the file into chunks, sends them one by one, and manages acknowledgments (ACKs) to ensure the whole file arrives correctly.
-
-**Example:** To send a new config file to the EPS, CDH (Source: 1) sends a `Start` message to EPS (Destination: 2), followed by a series of `DATA` messages. EPS (Source: 2) replies with `ACK` messages back to CDH (Destination: 1).
-
-- **Purpose:** CDH is the source/sink for files (e.g., log dumps to ground, or distributing config).
-- **Sub-IDs (INST):**
-
-  | INST | Name | Description |
-  |---|---|---|
-  | 0x000 | `Start` | Payload has direction, total length, chunk size, and file name |
-  | 0x001 | `DATA` | Payload has the chunk number and the actual data |
-  | 0x002 | `ACK` | Payload has the next chunk expected and a status (OK, RETRY, ABORT) |
-  | 0x003 | `END` | Payload has a final checksum to verify the file |
-
-### Boot/DFU (Class 10)
-
-**Summary:** Handles updating a device's firmware. Includes commands to make a device restart in "bootloader" mode (a special update-receptive state), then uses the File Transfer (Class 9) protocol to send the new software file.
-
-**Example:** To update the GPS software, CDH (Source: 1) first sends a `NODE_REBOOT` command to GNSS (Destination: 6). GNSS (Source: 6) restarts and sends a "Bootloader Heartbeat" to Everyone (Destination: 0). Finally, CDH uses the File Transfer protocol to send the new software from CDH (Source: 1) to GNSS (Destination: 6).
-
-- **Flows:**
-  1. **Enter bootloader:** Send `Command.NODE_REBOOT(reason=1)` to the target device.
-  2. **Bootloader heartbeat:** The device sends a `Heartbeat` (Class=0) with `state=BOOT`.
-  3. **DFU:** Use the File Transfer (Class 9) protocol to send the new firmware file.
+The 2/4/8-byte rule for classic opcodes is a project choice, not a hardware limit: classic CAN accepts any
+length from 0 to 8.
